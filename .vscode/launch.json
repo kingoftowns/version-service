@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Version Service",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.dev",
+      "env": {
+        "PORT": "8080",
+        "REDIS_URL": "redis://redis:6379",
+        "LOG_LEVEL": "debug",
+        "GIN_MODE": "debug"
+      },
+      "args": [],
+      "buildFlags": "-buildvcs=false"
+    },
+    {
+      "name": "Debug Current Test",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${file}",
+      "env": {
+        "REDIS_URL": "redis://redis:6379",
+        "LOG_LEVEL": "debug"
+      },
+      "args": [
+        "-test.v"
+      ],
+      "buildFlags": "-buildvcs=false"
+    }
+  ]
+}
