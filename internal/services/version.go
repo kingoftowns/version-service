@@ -135,7 +135,7 @@ func (s *VersionService) GetDevVersion(ctx context.Context, appID string, req *m
 		return nil, err
 	}
 
-	v, err := semver.Parse(currentVersion.Next)
+	v, err := semver.Parse(currentVersion.Current)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse version: %w", err)
 	}
