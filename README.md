@@ -1,6 +1,6 @@
 # Version Service
 
-A production-ready semantic versioning microservice in Go that manages version numbers for hundreds of applications across multiple GitLab repositories. This service provides a centralized, consistent way to generate orderable version numbers for CI/CD pipelines, replacing the need to use git SHAs.
+A production-ready semantic versioning microservice in Go. This service provides a centralized, consistent way to generate orderable version numbers for CI/CD pipelines, replacing the need to use git SHAs.
 
 ## Features
 
@@ -9,37 +9,19 @@ A production-ready semantic versioning microservice in Go that manages version n
 - **Dev Branch Support**: Generate development versions with SHA suffixes for non-production branches
 - **Dual Storage**: Redis for fast caching and Git repository as the source of truth
 - **RESTful API**: Simple HTTP API using the Gin framework
-- **Production Ready**: Health checks, metrics (Prometheus), structured logging, graceful shutdown
 - **High Availability**: Supports multiple replicas with concurrent request handling
-- **Kubernetes Native**: Full Kubernetes deployment manifests with HPA and ingress
-
-## Architecture
-
-```
-┌─────────────┐         ┌──────────────┐         ┌──────────────┐
-│   Client    │────────▶│Version Service│────────▶│    Redis     │
-│  (CI/CD)    │         │   (Go/Gin)   │         │   (Cache)    │
-└─────────────┘         └──────────────┘         └──────────────┘
-                                │
-                                ▼
-                        ┌──────────────┐
-                        │     Git      │
-                        │ (Source of   │
-                        │   Truth)     │
-                        └──────────────┘
-```
 
 ## Quick Start
 
 ### Prerequisites
 
-- Go 1.21+
+- Go 1.24+
 - Docker and Docker Compose
 - Redis (for local development)
 - Git repository for version storage
 - GitLab/GitHub access token
 
-### DevContainer Development (Recommended)
+### DevContainer Development
 
 The easiest way to get started is using VS Code DevContainers:
 
@@ -49,60 +31,11 @@ The easiest way to get started is using VS Code DevContainers:
 4. Press `F5` to start debugging or use `Ctrl+Shift+P` and type "Debug: Start Debugging"
 
 The devcontainer automatically:
-- Sets up Go 1.21 development environment
+- Sets up Go 1.24 development environment
 - Starts Redis service
 - Installs development tools (air, golangci-lint, delve)
 - Configures VS Code with Go extensions and settings
 - Maps ports 8080 (app) and 6379 (Redis)
-
-### Local Development (Manual Setup)
-
-1. Clone the repository:
-```bash
-git clone https://github.com/company/version-service.git
-cd version-service
-```
-
-2. Copy environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-3. Install dependencies:
-```bash
-go mod download
-```
-
-4. Start Redis:
-```bash
-make dev-redis
-# or manually: docker run -d -p 6379:6379 redis:7-alpine
-```
-
-5. Run locally:
-```bash
-make run
-# or with hot reload: make dev
-```
-
-### Docker Compose
-
-1. Set required environment variables:
-```bash
-export GIT_REPO_URL="https://gitlab.com/company/versions.git"
-export GIT_TOKEN="your-gitlab-token"
-```
-
-2. Start services:
-```bash
-docker-compose up -d
-```
-
-3. View logs:
-```bash
-docker-compose logs -f
-```
 
 ## API Documentation
 
@@ -263,16 +196,6 @@ make test
 make test-coverage
 ```
 
-### Code Quality
-
-```bash
-# Format code
-go fmt ./...
-
-# Run linter
-golangci-lint run ./...
-```
-
 ### Project Structure
 
 ```
@@ -286,11 +209,9 @@ golangci-lint run ./...
 │   └── middleware/        # HTTP middleware
 ├── pkg/
 │   └── semver/           # Semantic versioning package
-├── tests/                # Integration tests
 ├── .devcontainer/        # DevContainer configuration
 ├── .vscode/              # VS Code settings and launch config
 ├── Dockerfile            # Docker build file
-├── docker-compose.yml    # Docker Compose configuration
 ├── Makefile             # Build commands
 └── README.md            # This file
 ```
@@ -341,85 +262,3 @@ jobs:
           fi
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 ```
-
-## Monitoring
-
-### Metrics
-
-The service exposes the following Prometheus metrics:
-
-- `http_request_duration_seconds`: HTTP request duration histogram
-- `http_requests_total`: Total HTTP requests counter
-- `version_operations_total`: Version operation counter by type
-
-### Grafana Dashboard
-
-Import the provided Grafana dashboard for visualization:
-1. Access Grafana UI
-2. Import dashboard from `monitoring/grafana-dashboard.json`
-3. Select your Prometheus data source
-
-## Troubleshooting
-
-### Common Issues
-
-**Redis Connection Failed**
-```bash
-# Check Redis connectivity
-redis-cli -h localhost -p 6379 ping
-
-# Check Redis logs
-docker-compose logs redis
-```
-
-**Git Authentication Failed**
-```bash
-# Verify Git credentials
-git clone https://username:token@gitlab.com/company/versions.git
-
-# Check Git token permissions (needs read/write access)
-```
-
-**Version Not Incrementing**
-```bash
-# Check Git repository for conflicts
-kubectl exec -it -n version-service deployment/version-service -- sh
-cd /tmp/version-service-*
-git status
-git log --oneline -5
-```
-
-### Debug Mode
-
-Enable debug logging:
-```bash
-export LOG_LEVEL=debug
-export GIN_MODE=debug
-```
-
-## License
-
-Copyright (c) 2025 Company Name. All rights reserved.
-
-## Support
-
-For issues and questions:
-- Create an issue in the GitLab repository
-- Contact the platform team at platform@company.com
-- Slack: #platform-support
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow Go best practices and idioms
-- Write tests for new functionality
-- Update documentation for API changes
-- Ensure all tests pass before submitting PR
-- Follow semantic versioning for the service itself
