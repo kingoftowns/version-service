@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -13,11 +12,11 @@ import (
 )
 
 type Handler struct {
-	service *services.VersionService
+	service services.VersionServiceInterface
 	logger  *logrus.Logger
 }
 
-func NewHandler(service *services.VersionService, logger *logrus.Logger) *Handler {
+func NewHandler(service services.VersionServiceInterface, logger *logrus.Logger) *Handler {
 	return &Handler{
 		service: service,
 		logger:  logger,
@@ -44,14 +43,9 @@ func (h *Handler) Health(c *gin.Context) {
 		}
 	}
 
-	checksMap := make(map[string]string)
-	for i, check := range checks {
-		checksMap[fmt.Sprintf("check_%d", i)] = check
-	}
-
 	response := models.HealthResponse{
 		Status: status,
-		Checks: checksMap,
+		Checks: checks,
 	}
 
 	if status == "unhealthy" {

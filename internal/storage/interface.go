@@ -12,4 +12,5 @@ type Storage interface {
 	ListVersionsByProject(ctx context.Context, projectID string) (map[string]*models.AppVersion, error)
 	DeleteVersion(ctx context.Context, appID string) error
 	Health(ctx context.Context) error
+	RebuildCache(ctx context.Context, versions map[string]*models.AppVersion) error
 }

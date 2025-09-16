@@ -443,6 +443,11 @@ func (g *GitStorage) Health(ctx context.Context) error {
 	return g.pull()
 }
 
+func (g *GitStorage) RebuildCache(ctx context.Context, versions map[string]*models.AppVersion) error {
+	// Git storage doesn't use cache, so this is a no-op
+	return nil
+}
+
 func (g *GitStorage) Close() error {
 	if g.localDir != "" {
 		return os.RemoveAll(g.localDir)

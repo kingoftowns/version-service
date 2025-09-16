@@ -13,13 +13,13 @@ import (
 )
 
 type VersionService struct {
-	redis  *storage.RedisStorage
-	git    *storage.GitStorage
+	redis  storage.Storage
+	git    storage.Storage
 	logger *logrus.Logger
 	mu     sync.RWMutex
 }
 
-func NewVersionService(redis *storage.RedisStorage, git *storage.GitStorage, logger *logrus.Logger) *VersionService {
+func NewVersionService(redis storage.Storage, git storage.Storage, logger *logrus.Logger) *VersionService {
 	return &VersionService{
 		redis:  redis,
 		git:    git,
