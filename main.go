@@ -16,7 +16,27 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
+	_ "github.com/company/version-service/docs"
 )
+
+// @title           Version Service API
+// @version         1.0
+// @description     A service for managing application versions with Git-based persistence
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    https://github.com/company/version-service
+// @contact.email  support@company.com
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /
 
 func main() {
 	logger := setupLogger()
@@ -118,6 +138,9 @@ func setupRouter(service *services.VersionService, logger *logrus.Logger) *gin.E
 
 	router.GET("/health", handler.Health)
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Swagger documentation
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	v1 := router.Group("/")
 	{

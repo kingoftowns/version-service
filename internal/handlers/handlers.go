@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -23,6 +24,15 @@ func NewHandler(service *services.VersionService, logger *logrus.Logger) *Handle
 	}
 }
 
+// Health godoc
+// @Summary Health check
+// @Description Get health status of the service
+// @Tags health
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.HealthResponse
+// @Failure 503 {object} models.HealthResponse
+// @Router /health [get]
 func (h *Handler) Health(c *gin.Context) {
 	checks := h.service.Health(c.Request.Context())
 
@@ -34,9 +44,14 @@ func (h *Handler) Health(c *gin.Context) {
 		}
 	}
 
+	checksMap := make(map[string]string)
+	for i, check := range checks {
+		checksMap[fmt.Sprintf("check_%d", i)] = check
+	}
+
 	response := models.HealthResponse{
 		Status: status,
-		Checks: checks,
+		Checks: checksMap,
 	}
 
 	if status == "unhealthy" {
@@ -47,6 +62,17 @@ func (h *Handler) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetVersion godoc
+// @Summary Get application version
+// @Description Get the current version of an application
+// @Tags version
+// @Accept json
+// @Produce json
+// @Param app-id path string true "Application ID"
+// @Success 200 {object} models.VersionResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /version/{app-id} [get]
 func (h *Handler) GetVersion(c *gin.Context) {
 	appID := c.Param("app-id")
 	if appID == "" {
@@ -70,6 +96,18 @@ func (h *Handler) GetVersion(c *gin.Context) {
 	c.JSON(http.StatusOK, version)
 }
 
+// IncrementVersion godoc
+// @Summary Increment application version
+// @Description Increment the version of an application
+// @Tags version
+// @Accept json
+// @Produce json
+// @Param app-id path string true "Application ID"
+// @Param type query string false "Increment type (major, minor, patch)" default(patch)
+// @Success 200 {object} models.AppVersion
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /version/{app-id}/increment [post]
 func (h *Handler) IncrementVersion(c *gin.Context) {
 	appID := c.Param("app-id")
 	if appID == "" {
@@ -108,6 +146,18 @@ func (h *Handler) IncrementVersion(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetDevVersion godoc
+// @Summary Get development version
+// @Description Get a development version with branch and commit info
+// @Tags version
+// @Accept json
+// @Produce json
+// @Param app-id path string true "Application ID"
+// @Param request body models.DevVersionRequest true "Development version request"
+// @Success 200 {object} models.VersionResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /version/{app-id}/dev [post]
 func (h *Handler) GetDevVersion(c *gin.Context) {
 	appID := c.Param("app-id")
 	if appID == "" {
@@ -137,6 +187,15 @@ func (h *Handler) GetDevVersion(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// ListVersions godoc
+// @Summary List all versions
+// @Description Get a list of all application versions
+// @Tags version
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]models.AppVersion
+// @Failure 500 {object} models.ErrorResponse
+// @Router /versions [get]
 func (h *Handler) ListVersions(c *gin.Context) {
 	versions, err := h.service.ListVersions(c.Request.Context())
 	if err != nil {
@@ -148,6 +207,17 @@ func (h *Handler) ListVersions(c *gin.Context) {
 	c.JSON(http.StatusOK, versions)
 }
 
+// ListVersionsByProject godoc
+// @Summary List versions by project
+// @Description Get a list of versions for a specific project
+// @Tags version
+// @Accept json
+// @Produce json
+// @Param project-id path string true "Project ID"
+// @Success 200 {object} map[string]models.AppVersion
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /versions/{project-id} [get]
 func (h *Handler) ListVersionsByProject(c *gin.Context) {
 	projectID := c.Param("project-id")
 	if projectID == "" {

@@ -73,6 +73,79 @@ func (g *GitStorage) clone() error {
 	})
 
 	if err != nil {
+		// Handle empty repository case
+		if err.Error() == "remote repository is empty" {
+			g.logger.Info("Repository is empty, initializing new repository")
+
+			// Initialize a new repository locally
+			repo, err = git.PlainInit(g.localDir, false)
+			if err != nil {
+				return fmt.Errorf("failed to initialize repository: %w", err)
+			}
+
+			// Add remote
+			_, err = repo.CreateRemote(&config.RemoteConfig{
+				Name: "origin",
+				URLs: []string{g.repoURL},
+			})
+			if err != nil {
+				return fmt.Errorf("failed to add remote: %w", err)
+			}
+
+			// Create initial versions.json file
+			vf := &models.VersionsFile{
+				Versions:    make(map[string]*models.AppVersion),
+				LastUpdated: time.Now(),
+			}
+
+			// Write the file directly since writeVersionsFile might depend on g.repo
+			data, err := json.MarshalIndent(vf, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal versions file: %w", err)
+			}
+			filePath := filepath.Join(g.localDir, versionsFileName)
+			if err := os.WriteFile(filePath, data, 0644); err != nil {
+				return fmt.Errorf("failed to write initial versions file: %w", err)
+			}
+
+			// Create initial commit
+			w, err := repo.Worktree()
+			if err != nil {
+				return fmt.Errorf("failed to get worktree: %w", err)
+			}
+
+			if _, err := w.Add(versionsFileName); err != nil {
+				return fmt.Errorf("failed to add versions file: %w", err)
+			}
+
+			_, err = w.Commit("Initial commit", &git.CommitOptions{
+				Author: &object.Signature{
+					Name:  "Version Service",
+					Email: "version-service@company.com",
+					When:  time.Now(),
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create initial commit: %w", err)
+			}
+
+			// Push to remote to create the branch
+			err = repo.Push(&git.PushOptions{
+				Auth:       auth,
+				RemoteName: "origin",
+				RefSpecs: []config.RefSpec{
+					config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", g.branch, g.branch)),
+				},
+			})
+			if err != nil && err != git.NoErrAlreadyUpToDate {
+				g.logger.WithError(err).Warn("Failed to push initial commit, repository might stay empty")
+			}
+
+			g.repo = repo
+			g.logger.Info("Empty repository initialized successfully")
+			return nil
+		}
+
 		g.logger.WithError(err).Error("Failed to clone repository")
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
@@ -106,6 +179,10 @@ func (g *GitStorage) pull() error {
 	})
 
 	if err != nil && err != git.NoErrAlreadyUpToDate {
+		if err.Error() == "remote repository is empty" {
+			g.logger.Debug("Repository is empty, no changes to pull")
+			return nil
+		}
 		g.logger.WithError(err).Warn("Pull failed, attempting reset and pull")
 
 		ref, err := g.repo.Head()
@@ -235,7 +312,11 @@ func (g *GitStorage) GetVersion(ctx context.Context, appID string) (*models.AppV
 	defer g.mu.Unlock()
 
 	if err := g.pull(); err != nil {
-		g.logger.WithError(err).Warn("Failed to pull latest changes")
+		if err.Error() == "remote repository is empty" {
+			g.logger.Debug("Repository is empty, no changes to pull")
+		} else {
+			g.logger.WithError(err).Warn("Failed to pull latest changes")
+		}
 	}
 
 	vf, err := g.readVersionsFile()
@@ -256,7 +337,11 @@ func (g *GitStorage) SetVersion(ctx context.Context, appID string, version *mode
 	defer g.mu.Unlock()
 
 	if err := g.pull(); err != nil {
-		g.logger.WithError(err).Warn("Failed to pull latest changes")
+		if err.Error() == "remote repository is empty" {
+			g.logger.Debug("Repository is empty, no changes to pull")
+		} else {
+			g.logger.WithError(err).Warn("Failed to pull latest changes")
+		}
 	}
 
 	vf, err := g.readVersionsFile()
@@ -288,7 +373,11 @@ func (g *GitStorage) ListVersions(ctx context.Context) (map[string]*models.AppVe
 	defer g.mu.Unlock()
 
 	if err := g.pull(); err != nil {
-		g.logger.WithError(err).Warn("Failed to pull latest changes")
+		if err.Error() == "remote repository is empty" {
+			g.logger.Debug("Repository is empty, no changes to pull")
+		} else {
+			g.logger.WithError(err).Warn("Failed to pull latest changes")
+		}
 	}
 
 	vf, err := g.readVersionsFile()
@@ -320,7 +409,11 @@ func (g *GitStorage) DeleteVersion(ctx context.Context, appID string) error {
 	defer g.mu.Unlock()
 
 	if err := g.pull(); err != nil {
-		g.logger.WithError(err).Warn("Failed to pull latest changes")
+		if err.Error() == "remote repository is empty" {
+			g.logger.Debug("Repository is empty, no changes to pull")
+		} else {
+			g.logger.WithError(err).Warn("Failed to pull latest changes")
+		}
 	}
 
 	vf, err := g.readVersionsFile()

@@ -42,7 +42,7 @@
 
   "forwardPorts": [8080, 6379],
 
-  "postCreateCommand": "git config --global --add safe.directory /workspace && go mod download",
+  "postCreateCommand": "git config --global --add safe.directory /workspace && go mod download && swag init --generalInfo main.go --output ./docs",
 
   "remoteUser": "vscode"
 }

@@ -13,8 +13,14 @@ COPY go.mod go.sum ./
 # Download dependencies
 RUN go mod download
 
+# Install swag for generating swagger docs
+RUN go install github.com/swaggo/swag/cmd/swag@v1.16.3
+
 # Copy source code
 COPY . .
+
+# Generate swagger documentation
+RUN swag init --generalInfo main.go --output ./docs
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
@@ -34,6 +40,9 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 # Copy the binary from builder
 COPY --from=builder /build/version-service /usr/local/bin/version-service
+
+# Copy swagger docs from builder
+COPY --from=builder /build/docs /docs
 
 # Use non-root user
 USER appuser

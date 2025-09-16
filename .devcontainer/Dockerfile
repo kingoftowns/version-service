@@ -10,6 +10,7 @@ RUN cd /tmp && \
     go install github.com/air-verse/air@v1.60.0 && \
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
     go install github.com/go-delve/delve/cmd/dlv@latest && \
+    go install github.com/swaggo/swag/cmd/swag@v1.16.3 && \
     rm -rf /tmp/go.mod /tmp/go.sum
 
 RUN usermod -aG sudo vscode && \

@@ -7,6 +7,9 @@
 bin/
 dist/
 
+# Swagger docs (generated automatically)
+docs/
+
 # Test binary, built with `go test -c`
 *.test
 
