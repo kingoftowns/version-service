@@ -71,11 +71,16 @@ func (s *VersionService) GetVersion(ctx context.Context, appID string) (*models.
 				return nil, err
 			}
 		} else {
-			go func() {
-				if err := s.redis.SetVersion(context.Background(), appID, version); err != nil {
-					s.logger.WithError(err).WithField("app_id", appID).Warn("Failed to cache version in Redis")
-				}
-			}()
+			// Cache in Redis synchronously when fetched from Git
+			if err := s.redis.SetVersion(ctx, appID, version); err != nil {
+				s.logger.WithError(err).WithField("app_id", appID).Warn("Failed to cache version in Redis")
+				// Non-fatal: continue even if caching fails
+			} else {
+				s.logger.WithFields(logrus.Fields{
+					"app_id":  appID,
+					"version": version.Current,
+				}).Debug("Version cached in Redis from Git")
+			}
 		}
 	}
 
@@ -197,13 +202,32 @@ func (s *VersionService) calculateNextVersion(current string, incrementType mode
 }
 
 func (s *VersionService) saveVersion(ctx context.Context, appID string, version *models.AppVersion) error {
-	if err := s.git.SetVersion(ctx, appID, version); err != nil {
-		return fmt.Errorf("failed to save version to Git: %w", err)
+	// Save to Redis first (synchronous - fast, critical path)
+	if err := s.redis.SetVersion(ctx, appID, version); err != nil {
+		return fmt.Errorf("failed to save version to Redis: %w", err)
 	}
 
+	s.logger.WithFields(logrus.Fields{
+		"app_id":  appID,
+		"version": version.Current,
+	}).Debug("Version cached in Redis")
+
+	// Save to Git asynchronously (slow, network I/O)
 	go func() {
-		if err := s.redis.SetVersion(context.Background(), appID, version); err != nil {
-			s.logger.WithError(err).WithField("app_id", appID).Warn("Failed to cache version in Redis")
+		// Create a new context with timeout for Git operation
+		gitCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := s.git.SetVersion(gitCtx, appID, version); err != nil {
+			s.logger.WithError(err).WithFields(logrus.Fields{
+				"app_id":  appID,
+				"version": version.Current,
+			}).Error("Failed to persist version to Git - version is cached in Redis but not persisted")
+		} else {
+			s.logger.WithFields(logrus.Fields{
+				"app_id":  appID,
+				"version": version.Current,
+			}).Info("Version persisted to Git")
 		}
 	}()
 
