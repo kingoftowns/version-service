@@ -8,7 +8,6 @@ import (
 
 type AppVersion struct {
 	Current     string    `json:"current"`
-	Next        string    `json:"next"`
 	ProjectID   string    `json:"project_id"`
 	AppName     string    `json:"app_name"`
 	RepoName    string    `json:"repo_name,omitempty"`

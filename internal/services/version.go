@@ -62,7 +62,6 @@ func (s *VersionService) GetVersion(ctx context.Context, appID string) (*models.
 		if version == nil {
 			version = &models.AppVersion{
 				Current:     "1.0.0",
-				Next:        "1.0.1",
 				ProjectID:   projectID,
 				AppName:     appName,
 				LastUpdated: time.Now(),
@@ -79,12 +78,6 @@ func (s *VersionService) GetVersion(ctx context.Context, appID string) (*models.
 			}()
 		}
 	}
-
-	nextVersion, err := s.calculateNextVersion(version.Current, models.IncrementTypePatch)
-	if err != nil {
-		return nil, err
-	}
-	version.Next = nextVersion
 
 	return version, nil
 }
@@ -162,14 +155,7 @@ func (s *VersionService) ListVersions(ctx context.Context) (map[string]*models.A
 		}
 	}
 
-	for appID, version := range versions {
-		nextVersion, err := s.calculateNextVersion(version.Current, models.IncrementTypePatch)
-		if err != nil {
-			s.logger.WithError(err).WithField("app_id", appID).Warn("Failed to calculate next version")
-			continue
-		}
-		version.Next = nextVersion
-	}
+	// No need to calculate next versions anymore - simplified API
 
 	return versions, nil
 }
@@ -184,14 +170,7 @@ func (s *VersionService) ListVersionsByProject(ctx context.Context, projectID st
 		}
 	}
 
-	for appID, version := range versions {
-		nextVersion, err := s.calculateNextVersion(version.Current, models.IncrementTypePatch)
-		if err != nil {
-			s.logger.WithError(err).WithField("app_id", appID).Warn("Failed to calculate next version")
-			continue
-		}
-		version.Next = nextVersion
-	}
+	// No need to calculate next versions anymore - simplified API
 
 	return versions, nil
 }

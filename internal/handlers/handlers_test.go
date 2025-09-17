@@ -129,7 +129,6 @@ func TestGetVersion_Success(t *testing.T) {
 
 	expectedVersion := &models.AppVersion{
 		Current:   "1.0.0",
-		Next:      "1.0.1",
 		ProjectID: "1234",
 		AppName:   "user-service",
 	}
