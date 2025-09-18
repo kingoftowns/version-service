@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/company/version-service/internal/clients"
 	"github.com/company/version-service/internal/config"
 	"github.com/company/version-service/internal/handlers"
 	"github.com/company/version-service/internal/middleware"
@@ -58,7 +59,9 @@ func main() {
 	}
 	defer gitStorage.Close()
 
-	versionService := services.NewVersionService(redisStorage, gitStorage, logger)
+	gitLabClient := clients.NewGitLabClient(cfg.GitLabBaseURL, cfg.GitLabAccessToken, logger)
+
+	versionService := services.NewVersionService(redisStorage, gitStorage, gitLabClient, logger)
 
 	ctx := context.Background()
 	if err := versionService.Initialize(ctx); err != nil {

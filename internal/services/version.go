@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/company/version-service/internal/clients"
 	"github.com/company/version-service/internal/models"
 	"github.com/company/version-service/internal/storage"
 	"github.com/company/version-service/pkg/semver"
@@ -15,6 +16,7 @@ import (
 type VersionService struct {
 	redis         storage.Storage
 	git           storage.Storage
+	gitLabClient  *clients.GitLabClient
 	logger        *logrus.Logger
 	mu            sync.RWMutex
 	gitHealth     gitHealthStatus
@@ -40,11 +42,12 @@ type gitMetrics struct {
 }
 
 
-func NewVersionService(redis storage.Storage, git storage.Storage, logger *logrus.Logger) *VersionService {
+func NewVersionService(redis storage.Storage, git storage.Storage, gitLabClient *clients.GitLabClient, logger *logrus.Logger) *VersionService {
 	return &VersionService{
-		redis:  redis,
-		git:    git,
-		logger: logger,
+		redis:        redis,
+		git:          git,
+		gitLabClient: gitLabClient,
+		logger:       logger,
 		gitHealth: gitHealthStatus{
 			lastSuccess: time.Now(),
 		},
@@ -89,8 +92,32 @@ func (s *VersionService) GetVersion(ctx context.Context, appID string) (*models.
 		}
 
 		if version == nil {
+			// Try to find existing tags from GitLab
+			var initialVersion string
+			if s.gitLabClient != nil {
+				gitLabTag, err := s.gitLabClient.GetLatestTag(ctx, projectID)
+				if err != nil {
+					s.logger.WithError(err).WithFields(logrus.Fields{
+						"app_id":     appID,
+						"project_id": projectID,
+					}).Warn("Failed to fetch tags from GitLab, using default version")
+				} else if gitLabTag != "" {
+					initialVersion = gitLabTag
+					s.logger.WithFields(logrus.Fields{
+						"app_id":     appID,
+						"project_id": projectID,
+						"version":    gitLabTag,
+					}).Info("Using latest tag from GitLab as initial version")
+				}
+			}
+
+			// Use GitLab tag if found, otherwise default to 1.0.0
+			if initialVersion == "" {
+				initialVersion = "1.0.0"
+			}
+
 			version = &models.AppVersion{
-				Current:     "1.0.0",
+				Current:     initialVersion,
 				ProjectID:   projectID,
 				AppName:     appName,
 				LastUpdated: time.Now(),

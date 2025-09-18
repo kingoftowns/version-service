@@ -6,24 +6,28 @@ import (
 )
 
 type Config struct {
-	Port        string
-	RedisURL    string
-	GitRepoURL  string
-	GitUsername string
-	GitToken    string
-	GitBranch   string
-	LogLevel    string
+	Port              string
+	RedisURL          string
+	GitRepoURL        string
+	GitUsername       string
+	GitToken          string
+	GitBranch         string
+	GitLabBaseURL     string
+	GitLabAccessToken string
+	LogLevel          string
 }
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:        getEnv("PORT", "8080"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
-		GitRepoURL:  getEnv("GIT_REPO_URL", ""),
-		GitUsername: getEnv("GIT_USERNAME", "version-service"),
-		GitToken:    getEnv("GIT_TOKEN", ""),
-		GitBranch:   getEnv("GIT_BRANCH", "main"),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		Port:              getEnv("PORT", "8080"),
+		RedisURL:          getEnv("REDIS_URL", "redis://localhost:6379"),
+		GitRepoURL:        getEnv("GIT_REPO_URL", ""),
+		GitUsername:       getEnv("GIT_USERNAME", "version-service"),
+		GitToken:          getEnv("GIT_TOKEN", ""),
+		GitBranch:         getEnv("GIT_BRANCH", "main"),
+		GitLabBaseURL:     getEnv("GITLAB_BASE_URL", "https://gitlab.com/api/v4"),
+		GitLabAccessToken: getEnv("GITLAB_ACCESS_TOKEN", ""),
+		LogLevel:          getEnv("LOG_LEVEL", "info"),
 	}
 
 	if cfg.GitRepoURL == "" {
