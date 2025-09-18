@@ -1,0 +1,38 @@
+# Test GET /versions
+GET http://localhost:8080/versions
+
+###
+
+# Test GET /version/{app-id}
+GET http://localhost:8080/version/1234-test-app
+
+###
+
+# Test GET /version/{app-id} NOT in system, get from Gitlab
+GET http://localhost:8080/version/71133967
+
+###
+
+# Test POST /version/{app-id}/dev
+POST http://localhost:8080/version/1234-test-app/dev
+Content-Type: application/json
+
+{
+  "sha": "abc123def456",
+  "branch": "feature/test-branch"
+}
+
+###
+
+# Test POST /version/{app-id}/increment (patch by default)
+POST http://localhost:8080/version/1234-test-app/increment
+
+###
+
+# Test POST /version/{app-id}/increment (minor)
+POST http://localhost:8080/version/1234-test-app/increment?type=minor
+
+###
+
+# Test POST /version/{app-id}/increment (major)
+POST http://localhost:8080/version/1234-test-app/increment?type=major
