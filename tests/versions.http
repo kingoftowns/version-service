@@ -9,7 +9,7 @@ GET http://localhost:8080/version/1234-test-app
 ###
 
 # Test GET /version/{app-id} NOT in system, get from Gitlab
-GET http://localhost:8080/version/71133967
+GET http://localhost:8080/version/71133967-reynaga-hello-world
 
 ###
 
