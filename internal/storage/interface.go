@@ -14,3 +14,8 @@ type Storage interface {
 	Health(ctx context.Context) error
 	RebuildCache(ctx context.Context, versions map[string]*models.AppVersion) error
 }
+
+// GitStorage specific interface for push operations
+type GitPushable interface {
+	PushPendingCommits(ctx context.Context) error
+}

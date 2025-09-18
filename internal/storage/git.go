@@ -276,7 +276,7 @@ func (g *GitStorage) writeVersionsFile(vf *models.VersionsFile) error {
 	return nil
 }
 
-func (g *GitStorage) commitAndPush(message string) error {
+func (g *GitStorage) commit(message string) error {
 	w, err := g.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("failed to get worktree: %w", err)
@@ -299,11 +299,79 @@ func (g *GitStorage) commitAndPush(message string) error {
 	}
 
 	g.logger.WithField("commit", commit.String()).Debug("Changes committed")
+	return nil
+}
+
+func (g *GitStorage) commitAndPush(message string) error {
+	if err := g.commit(message); err != nil {
+		return err
+	}
 
 	if err := g.push(); err != nil {
 		return fmt.Errorf("failed to push changes: %w", err)
 	}
 
+	return nil
+}
+
+func (g *GitStorage) hasUnpushedCommits() (bool, error) {
+	// Get local head
+	localRef, err := g.repo.Head()
+	if err != nil {
+		return false, fmt.Errorf("failed to get local HEAD: %w", err)
+	}
+
+	// Get remote head
+	remote, err := g.repo.Remote("origin")
+	if err != nil {
+		return false, fmt.Errorf("failed to get remote: %w", err)
+	}
+
+	auth := &http.BasicAuth{
+		Username: g.username,
+		Password: g.token,
+	}
+
+	refs, err := remote.List(&git.ListOptions{Auth: auth})
+	if err != nil {
+		// If we can't list remote refs, assume we have unpushed commits
+		g.logger.WithError(err).Debug("Failed to list remote refs, assuming unpushed commits exist")
+		return true, nil
+	}
+
+	// Find the remote branch reference
+	remoteBranchRef := fmt.Sprintf("refs/heads/%s", g.branch)
+	for _, ref := range refs {
+		if ref.Name().String() == remoteBranchRef {
+			// Compare local and remote commit hashes
+			return localRef.Hash() != ref.Hash(), nil
+		}
+	}
+
+	// Remote branch doesn't exist, so we have unpushed commits
+	return true, nil
+}
+
+func (g *GitStorage) PushPendingCommits(ctx context.Context) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	hasUnpushed, err := g.hasUnpushedCommits()
+	if err != nil {
+		return fmt.Errorf("failed to check for unpushed commits: %w", err)
+	}
+
+	if !hasUnpushed {
+		g.logger.Debug("No unpushed commits found")
+		return nil
+	}
+
+	g.logger.Info("Pushing pending commits to remote")
+	if err := g.push(); err != nil {
+		return fmt.Errorf("failed to push pending commits: %w", err)
+	}
+
+	g.logger.Info("Successfully pushed pending commits")
 	return nil
 }
 
@@ -356,8 +424,19 @@ func (g *GitStorage) SetVersion(ctx context.Context, appID string, version *mode
 	}
 
 	commitMsg := fmt.Sprintf("%s: Update %s to %s", commitMessage, appID, version.Current)
-	if err := g.commitAndPush(commitMsg); err != nil {
-		return err
+
+	// Commit locally first
+	if err := g.commit(commitMsg); err != nil {
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+
+	// Try to push, but don't fail the entire operation if push fails
+	if err := g.push(); err != nil {
+		g.logger.WithError(err).WithFields(logrus.Fields{
+			"app_id":  appID,
+			"version": version.Current,
+		}).Warn("Failed to push to remote, commit saved locally")
+		return fmt.Errorf("push failed: %w", err)
 	}
 
 	g.logger.WithFields(logrus.Fields{
