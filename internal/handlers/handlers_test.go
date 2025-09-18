@@ -63,6 +63,16 @@ func (m *MockVersionService) ListVersionsByProject(ctx context.Context, projectI
 	return args.Get(0).(map[string]*models.AppVersion), args.Error(1)
 }
 
+func (m *MockVersionService) DeleteVersion(ctx context.Context, appID string) error {
+	args := m.Called(ctx, appID)
+	return args.Error(0)
+}
+
+func (m *MockVersionService) DeleteProject(ctx context.Context, projectID string) error {
+	args := m.Called(ctx, projectID)
+	return args.Error(0)
+}
+
 func TestHealth_Healthy(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -167,4 +177,62 @@ func TestGetVersion_InvalidAppID(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestDeleteVersion_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(MockVersionService)
+	handler := NewHandler(mockService, logrus.New())
+
+	// Mock both GetVersion and DeleteVersion calls
+	mockService.On("GetVersion", mock.Anything, "1234-user-service").Return(&models.AppVersion{
+		Current:   "1.0.0",
+		ProjectID: "1234",
+		AppName:   "user-service",
+	}, nil)
+	mockService.On("DeleteVersion", mock.Anything, "1234-user-service").Return(nil)
+
+	router := gin.New()
+	router.DELETE("/delete/:id", handler.DeleteVersion)
+
+	req, _ := http.NewRequest("DELETE", "/delete/1234-user-service", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]string
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, "Version deleted successfully", response["message"])
+	assert.Equal(t, "1234-user-service", response["app_id"])
+
+	mockService.AssertExpectations(t)
+}
+
+func TestDeleteProject_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(MockVersionService)
+	handler := NewHandler(mockService, logrus.New())
+
+	mockService.On("DeleteProject", mock.Anything, "1234").Return(nil)
+
+	router := gin.New()
+	router.DELETE("/delete/:id", handler.DeleteVersion)
+
+	req, _ := http.NewRequest("DELETE", "/delete/1234", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]string
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, "Project deleted successfully", response["message"])
+	assert.Equal(t, "1234", response["project_id"])
+
+	mockService.AssertExpectations(t)
 }

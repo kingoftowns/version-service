@@ -229,6 +229,68 @@ func (h *Handler) ListVersionsByProject(c *gin.Context) {
 	c.JSON(http.StatusOK, versions)
 }
 
+// DeleteVersion godoc
+// @Summary Delete application version
+// @Description Delete a specific application version or entire project
+// @Tags version
+// @Accept json
+// @Produce json
+// @Param id path string true "Application ID (project-id-app-name) or Project ID (project-id)"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /delete/{id} [delete]
+func (h *Handler) DeleteVersion(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		h.errorResponse(c, http.StatusBadRequest, "ID_REQUIRED", "ID is required", "")
+		return
+	}
+
+	// Check if this is a project ID (no dash-separated app name) or app ID
+	if strings.Contains(id, "-") && len(strings.Split(id, "-")) >= 2 {
+		// This looks like an app ID (project-id-app-name)
+		_, err := h.service.GetVersion(c.Request.Context(), id)
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid app ID") {
+				h.errorResponse(c, http.StatusBadRequest, "INVALID_APP_ID", "Invalid app ID format", err.Error())
+				return
+			}
+			// If GetVersion fails, it might not exist, but we'll try to delete anyway
+		}
+
+		if err := h.service.DeleteVersion(c.Request.Context(), id); err != nil {
+			h.logger.WithError(err).WithField("app_id", id).Error("Failed to delete version")
+			h.errorResponse(c, http.StatusInternalServerError, "DELETE_FAILED", "Failed to delete version", err.Error())
+			middleware.RecordVersionOperation("delete", id, "error")
+			return
+		}
+
+		h.logger.WithField("app_id", id).Info("Version deleted successfully")
+		middleware.RecordVersionOperation("delete", id, "success")
+		c.JSON(http.StatusOK, map[string]string{
+			"message": "Version deleted successfully",
+			"app_id":  id,
+		})
+	} else {
+		// This looks like a project ID only
+		projectID := id
+
+		if err := h.service.DeleteProject(c.Request.Context(), projectID); err != nil {
+			h.logger.WithError(err).WithField("project_id", projectID).Error("Failed to delete project")
+			h.errorResponse(c, http.StatusInternalServerError, "DELETE_FAILED", "Failed to delete project", err.Error())
+			return
+		}
+
+		h.logger.WithField("project_id", projectID).Info("Project deleted successfully")
+		c.JSON(http.StatusOK, map[string]string{
+			"message":    "Project deleted successfully",
+			"project_id": projectID,
+		})
+	}
+}
+
 func (h *Handler) errorResponse(c *gin.Context, statusCode int, code, message, details string) {
 	response := models.ErrorResponse{
 		Error:   message,

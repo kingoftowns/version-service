@@ -586,3 +586,63 @@ func (s *VersionService) Health(ctx context.Context) map[string]string {
 
 	return checks
 }
+
+func (s *VersionService) DeleteVersion(ctx context.Context, appID string) error {
+	projectID, appName, err := models.ParseAppID(appID)
+	if err != nil {
+		return fmt.Errorf("invalid app ID: %w", err)
+	}
+
+	// Delete from Redis first (fast)
+	if err := s.redis.DeleteVersion(ctx, appID); err != nil {
+		s.logger.WithError(err).WithField("app_id", appID).Warn("Failed to delete version from Redis")
+		// Non-fatal: continue with Git deletion
+	}
+
+	// Delete from Git
+	if err := s.git.DeleteVersion(ctx, appID); err != nil {
+		s.logger.WithError(err).WithField("app_id", appID).Error("Failed to delete version from Git")
+		return fmt.Errorf("failed to delete version from Git: %w", err)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"app_id":     appID,
+		"project_id": projectID,
+		"app_name":   appName,
+	}).Info("Version deleted successfully")
+
+	return nil
+}
+
+func (s *VersionService) DeleteProject(ctx context.Context, projectID string) error {
+	// Get all versions for the project first
+	versions, err := s.ListVersionsByProject(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to list versions for project: %w", err)
+	}
+
+	if len(versions) == 0 {
+		s.logger.WithField("project_id", projectID).Info("No versions found for project")
+		return nil
+	}
+
+	// Delete each app in the project
+	var deleteErrors []string
+	for appID := range versions {
+		if err := s.DeleteVersion(ctx, appID); err != nil {
+			deleteErrors = append(deleteErrors, fmt.Sprintf("%s: %v", appID, err))
+			s.logger.WithError(err).WithField("app_id", appID).Error("Failed to delete app version")
+		}
+	}
+
+	if len(deleteErrors) > 0 {
+		return fmt.Errorf("failed to delete some versions: %v", deleteErrors)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"project_id": projectID,
+		"count":      len(versions),
+	}).Info("Project deleted successfully")
+
+	return nil
+}

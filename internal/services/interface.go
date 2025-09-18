@@ -12,4 +12,6 @@ type VersionServiceInterface interface {
 	GetDevVersion(ctx context.Context, appID string, req *models.DevVersionRequest) (*models.VersionResponse, error)
 	ListVersions(ctx context.Context) (map[string]*models.AppVersion, error)
 	ListVersionsByProject(ctx context.Context, projectID string) (map[string]*models.AppVersion, error)
+	DeleteVersion(ctx context.Context, appID string) error
+	DeleteProject(ctx context.Context, projectID string) error
 }

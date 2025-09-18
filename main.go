@@ -152,6 +152,7 @@ func setupRouter(service *services.VersionService, logger *logrus.Logger) *gin.E
 		v1.POST("/version/:app-id/dev", handler.GetDevVersion)
 		v1.GET("/versions", handler.ListVersions)
 		v1.GET("/versions/:project-id", handler.ListVersionsByProject)
+		v1.DELETE("/delete/:id", handler.DeleteVersion)
 	}
 
 	router.NoRoute(func(c *gin.Context) {
